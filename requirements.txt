@@ -1,0 +1,11 @@
+livekit==1.0.16
+livekit-api==1.0.7
+openai-whisper
+pyttsx3
+python-dotenv
+requests
+torch
+numpy
+flask
+flask-cors
+pyjwt

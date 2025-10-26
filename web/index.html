@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveKit Voice Assistant</title>
+    <script src="livekit-client.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        .status-dot.speaking {
+            background: #ffc107;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .connect-form {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: grid;
+            gap: 5px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9em;
+        }
+
+        input {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .controls {
+            display: none;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .controls.active {
+            display: flex;
+        }
+
+        .conversation {
+            margin-top: 30px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+        }
+
+        .message.assistant {
+            background: #f0f8f0;
+            border-left: 4px solid #28a745;
+        }
+
+        .message-label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .message.user .message-label {
+            color: #667eea;
+        }
+
+        .message.assistant .message-label {
+            color: #28a745;
+        }
+
+        .message-text {
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .logs {
+            margin-top: 20px;
+            padding: 15px;
+            background: #212529;
+            color: #f8f9fa;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        .log-entry {
+            padding: 2px 0;
+            opacity: 0.9;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .mic-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #fff;
+            border-radius: 20px;
+            margin-top: 10px;
+        }
+
+        .mic-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #6c757d;
+        }
+
+        .mic-dot.active {
+            background: #dc3545;
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 LiveKit Voice Assistant</h1>
+            <p>Real-time voice interaction with STT + LLM + TTS</p>
+            <div class="mic-indicator">
+                <div class="mic-dot" id="micDot"></div>
+                <span id="micStatus">Microphone: Off</span>
+            </div>
+        </div>
+
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <strong id="statusText">Not Connected</strong>
+        </div>
+
+        <div class="content">
+            <!-- Connect Form -->
+            <div id="connectSection">
+                <div class="connect-form">
+                    <div class="form-group">
+                        <label>Room Name</label>
+                        <input type="text" id="roomName" value="voice-room">
+                    </div>
+                    <div class="form-group">
+                        <label>Your Name</label>
+                        <input type="text" id="userName" value="User">
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="connect()" style="width: 100%;">
+                    🚀 Connect & Start Voice Chat
+                </button>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls" id="controlsSection">
+                <button class="btn-success" id="micBtn" onclick="toggleMic()" style="flex: 1;">
+                    🎤 Start Microphone
+                </button>
+                <button class="btn-danger" onclick="disconnect()">
+                    ❌ Disconnect
+                </button>
+            </div>
+
+            <!-- Conversation -->
+            <div class="conversation hidden" id="conversation">
+                <h3 style="margin-bottom: 15px; color: #495057;">💬 Conversation</h3>
+                <div id="messages"></div>
+            </div>
+
+            <!-- Logs -->
+            <div class="logs">
+                <div id="logs">
+                    <div class="log-entry">✅ Ready to connect</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let room = null;
+        let localAudioTrack = null;
+        let isMicEnabled = false;
+        let isSpeaking = false;
+
+        function addLog(message) {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function updateStatus(text, connected = false, speaking = false) {
+            document.getElementById('statusText').textContent = text;
+            const dot = document.getElementById('statusDot');
+            dot.className = 'status-dot' + (speaking ? ' speaking' : connected ? ' connected' : '');
+        }
+
+        function addMessage(type, text) {
+            const conversation = document.getElementById('conversation');
+            const messages = document.getElementById('messages');
+            
+            conversation.classList.remove('hidden');
+            
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.innerHTML = `
+                <div class="message-label">${type === 'user' ? '👤 You' : '🤖 Assistant'}</div>
+                <div class="message-text">${text}</div>
+            `;
+            
+            messages.appendChild(message);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        async function connect() {
+            const roomName = document.getElementById('roomName').value;
+            const userName = document.getElementById('userName').value;
+
+            if (!roomName || !userName) {
+                alert('Please enter room name and your name');
+                return;
+            }
+
+            try {
+                addLog('🔄 Connecting to LiveKit...');
+                updateStatus('Connecting...', false);
+
+                // Get token from server
+                const tokenResponse = await fetch(`http://localhost:5000/token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(userName)}`);
+                const tokenData = await tokenResponse.json();
+
+                // Create room
+                room = new LivekitClient.Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                });
+
+                // Setup event listeners
+                room.on(LivekitClient.RoomEvent.DataReceived, handleDataReceived);
+                room.on(LivekitClient.RoomEvent.Disconnected, handleDisconnected);
+                room.on(LivekitClient.RoomEvent.ParticipantConnected, (p) => {
+                    addLog(`👋 ${p.identity} joined`);
+                });
+
+                // Connect
+                await room.connect(tokenData.url, tokenData.token);
+                
+                addLog('✅ Connected!');
+                updateStatus('Connected - Ready to chat', true);
+
+                // Show controls
+                document.getElementById('connectSection').classList.add('hidden');
+                document.getElementById('controlsSection').classList.add('active');
+
+                // Auto-enable mic
+                await enableMic();
+
+            } catch (error) {
+                addLog(`❌ Connection failed: ${error.message}`);
+                updateStatus('Connection failed', false);
+                console.error(error);
+            }
+        }
+
+        async function enableMic() {
+            try {
+                addLog('🎤 Enabling microphone...');
+
+                localAudioTrack = await LivekitClient.createLocalAudioTrack({
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                });
+
+                await room.localParticipant.publishTrack(localAudioTrack);
+
+                isMicEnabled = true;
+                updateMicUI();
+                addLog('✅ Microphone enabled - Start speaking!');
+                updateStatus('🎙️ Listening...', true, true);
+
+            } catch (error) {
+                addLog(`❌ Microphone error: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        function toggleMic() {
+            if (!localAudioTrack) return;
+
+            isMicEnabled = !isMicEnabled;
+            localAudioTrack.enable(isMicEnabled);
+            updateMicUI();
+
+            if (isMicEnabled) {
+                addLog('🎤 Microphone unmuted');
+                updateStatus('🎙️ Listening...', true, true);
+            } else {
+                addLog('🔇 Microphone muted');
+                updateStatus('Connected', true, false);
+            }
+        }
+
+        function updateMicUI() {
+            const btn = document.getElementById('micBtn');
+            const dot = document.getElementById('micDot');
+            const status = document.getElementById('micStatus');
+
+            if (isMicEnabled) {
+                btn.textContent = '🔇 Mute Microphone';
+                btn.className = 'btn-danger';
+                dot.classList.add('active');
+                status.textContent = 'Microphone: Active';
+            } else {
+                btn.textContent = '🎤 Unmute Microphone';
+                btn.className = 'btn-success';
+                dot.classList.remove('active');
+                status.textContent = 'Microphone: Muted';
+            }
+        }
+
+        async function disconnect() {
+            if (room) {
+                await room.disconnect();
+                addLog('👋 Disconnected');
+            }
+        }
+
+        function handleDataReceived(payload, participant) {
+            try {
+                const text = new TextDecoder().decode(payload);
+                const data = JSON.parse(text);
+
+                if (data.type === 'conversation') {
+                    addLog(`💬 Conversation received`);
+                    addMessage('user', data.user);
+                    addMessage('assistant', data.assistant);
+                    
+                    // Speak the assistant's response
+                    speakResponse(data.assistant);
+                    
+                    updateStatus('Connected - Ready to chat', true, false);
+                }
+            } catch (error) {
+                addLog(`❌ Error processing data: ${error.message}`);
+            }
+        }
+
+        function speakResponse(text) {
+            addLog('🔊 Speaking response...');
+            
+            isSpeaking = true;
+            
+            // Unpublish audio track to prevent feedback
+            if (localAudioTrack && isMicEnabled && room) {
+                room.localParticipant.unpublishTrack(localAudioTrack);
+                addLog('🔇 Audio track stopped for TTS');
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            // Use best available voice
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => v.name.includes('Natural') || v.name.includes('Premium')) || voices[0];
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+            }
+            
+            utterance.onstart = () => {
+                addLog('🔊 Playing TTS audio...');
+            };
+            
+            utterance.onend = () => {
+                addLog('✅ Finished speaking');
+                isSpeaking = false;
+                
+                // Re-publish audio track after TTS
+                setTimeout(async () => {
+                    if (localAudioTrack && isMicEnabled && room) {
+                        await room.localParticipant.publishTrack(localAudioTrack);
+                        addLog('🎤 Audio track re-published');
+                    }
+                }, 500);
+            };
+            
+            utterance.onerror = (error) => {
+                addLog(`⚠️ TTS error: ${error.error}`);
+                isSpeaking = false;
+                
+                // Re-publish on error
+                if (localAudioTrack && isMicEnabled && room) {
+                    room.localParticipant.publishTrack(localAudioTrack);
+                }
+            };
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function handleDisconnected() {
+            addLog('❌ Disconnected from room');
+            updateStatus('Disconnected', false);
+
+            document.getElementById('connectSection').classList.remove('hidden');
+            document.getElementById('controlsSection').classList.remove('active');
+
+            isMicEnabled = false;
+            updateMicUI();
+        }
+
+        addLog('💡 Enter your details and click Connect');
+        addLog('💡 Make sure the voice agent is running!');
+    </script>
+</body>
+</html>
